@@ -30,3 +30,4 @@ class TrainDetailItem(scrapy.Item):
     TrainNo = scrapy.Field()
     TrainCode = scrapy.Field()
     Info = scrapy.Field()
+    QueryDate =scrapy.Field()

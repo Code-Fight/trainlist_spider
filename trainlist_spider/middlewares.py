@@ -118,33 +118,40 @@ class LocalRetryMiddlewares(RetryMiddleware):
             # self.log('retryed :' + request.url)
             return self._retry(request,'网络302',spider) or response
 
+        if len(ret) == 0:
+            return self._retry(request, '超时', spider) or response
+
+
+
         return response
 
     # 改写重试机制，不再看次数了。。。。失败了 一直重试
-    # def _retry(self, request, reason, spider):
-    #     retries = request.meta.get('retry_times', 0) + 1
-    #
-    #     retry_times = self.max_retry_times
-    #
-    #     if 'max_retry_times' in request.meta:
-    #         retry_times = request.meta['max_retry_times']
-    #
-    #     stats = spider.crawler.stats
-    #     # if retries <= retry_times:
-    #     logger.debug("Retrying %(request)s (failed %(retries)d times): %(reason)s",
-    #                  {'request': request, 'retries': retries, 'reason': reason},
-    #                  extra={'spider': spider})
-    #     retryreq = request.copy()
-    #     retryreq.meta['retry_times'] = retries
-    #     retryreq.dont_filter = True
-    #     retryreq.priority = request.priority + self.priority_adjust
-    #
-    #     if isinstance(reason, Exception):
-    #         reason = global_object_name(reason.__class__)
-    #
-    #     stats.inc_value('retry/count')
-    #     stats.inc_value('retry/reason_count/%s' % reason)
-    #     return retryreq
+    def _retry(self, request, reason, spider):
+        retries = request.meta.get('retry_times', 0) + 1
+
+        retry_times = self.max_retry_times
+
+        if 'max_retry_times' in request.meta:
+            retry_times = request.meta['max_retry_times']
+
+        stats = spider.crawler.stats
+        # if retries <= retry_times:
+        logger.debug("Retrying %(request)s (failed %(retries)d times): %(reason)s",
+                     {'request': request, 'retries': retries, 'reason': reason},
+                     extra={'spider': spider})
+        retryreq = request.copy()
+        retryreq.meta['retry_times'] = retries
+        retryreq.dont_filter = True
+        retryreq.priority = request.priority + self.priority_adjust
+
+        if isinstance(reason, Exception):
+            reason = global_object_name(reason.__class__)
+
+        stats.inc_value('retry/count')
+        stats.inc_value('retry/reason_count/%s' % reason)
+        print("retrying.."+str(retry_times))
+
+        return retryreq
     # #     # else:
         #     stats.inc_value('retry/max_reached')
         #     logger.debug("Gave up retrying %(request)s (failed %(retries)d times): %(reason)s",

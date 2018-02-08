@@ -33,7 +33,7 @@ class TrainCodeListPipline(object):
 
         # 列车时刻表
         if isinstance(item,TrainCodeItem):
-            db_ret = self.train_code_list.find_one({'TrainCode': item['TrainCode']})
+            db_ret = self.train_code_list.find_one({'TrainCode': item['TrainCode'], 'QueryDate': item['QueryDate']})
             # print("---------------------------------")
             # print("db_ret:"+str(db_ret))
             # print({'TrainCode':item['TrainCode']})
@@ -42,7 +42,7 @@ class TrainCodeListPipline(object):
                 self.train_code_list.insert(data)
         # 列车详细信息
         elif isinstance(item,TrainDetailItem):
-            db_ret = self.train_code_detail.find_one({'TrainCode': item['TrainCode']})
+            db_ret = self.train_code_detail.find_one({'TrainCode': item['TrainCode'], 'QueryDate': item['QueryDate']})
             if db_ret is None:
                 self.train_code_detail.insert(data)
 

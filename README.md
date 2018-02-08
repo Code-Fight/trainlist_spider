@@ -7,4 +7,9 @@ Create by Scrapy
 
 2.Modfiy retry 
 
+## How to use
+1.Install python/scarpy/Mongodb
+2.Edit settings.py for Mongodb setting
+3.run mian.py
+
 

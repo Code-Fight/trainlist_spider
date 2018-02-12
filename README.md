@@ -9,7 +9,9 @@ Create by Scrapy
 
 ## How to use
 1.Install python/scarpy/Mongodb
+
 2.Edit settings.py for Mongodb setting
-3.run mian.py
+
+3.run mian.py or by scrapyd
 
 

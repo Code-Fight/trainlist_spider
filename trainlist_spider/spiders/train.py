@@ -19,12 +19,12 @@ class TrainSpider(scrapy.Spider):
 
         # 初始化查询时间
         querydata = 1
-        if settings['Query_Data']:
-            querydata = int(settings['Query_Data'])
+        if settings['QUERY_DATE']:
+            querydata = int(settings['QUERY_DATE'])
 
         self.query_date = (datetime.datetime.now() + datetime.timedelta(days=querydata)).strftime("%Y-%m-%d")
 
-        self.log("准备加载50M的站站组合信息，请耐心等待吧...")
+        self.log("准备加载50M的站站组合信息，请耐心等待吧...",level=logging.INFO)
         yield scrapy.Request("https://kyfw.12306.cn/otn/resources/js/query/train_list.js",callback=self.get_ftstations)
 
     # 获取站点简码
@@ -32,8 +32,8 @@ class TrainSpider(scrapy.Spider):
 
         ret = response.body.decode('utf-8')
         if "train_list" not in ret:
-            self.log("获取站站组合信息失败...")
-            self.log(response.request.url)
+            self.log("获取站站组合信息失败...",level=logging.INFO)
+            self.log(response.request.url,level=logging.INFO)
             return
         # print('.................retry .................')
         # return
@@ -52,7 +52,7 @@ class TrainSpider(scrapy.Spider):
 
         # print(len(self.train_list))
         # return
-        self.log("站站组合信息加载完成，开始加载站段信息...")
+        self.log("站站组合信息加载完成，开始加载站段信息...",level=logging.INFO)
         yield scrapy.Request("https://kyfw.12306.cn/otn/resources/js/framework/station_name.js",callback=self.get_stations)
 
 
@@ -60,14 +60,14 @@ class TrainSpider(scrapy.Spider):
 
     # 处理所有站段 并 组合来发送请求
     def get_stations(self,response):
-        self.log("站段信息加载完成...")
+        self.log("站段信息加载完成...",level=logging.INFO)
         # 获取站段数据
         ret = re.findall('\'([\s\S]*)\'', response.body.decode('utf-8'))
         if len(ret):
             self.stations = ret[0].split('@')
             self.stations.pop(0)
         else:
-            self.log("没有获取到站段信息")
+            self.log("没有获取到站段信息",level=logging.INFO)
 
         # 把所有的站点信息做成字典
         self.stations_dic = {}
@@ -116,7 +116,7 @@ class TrainSpider(scrapy.Spider):
     def get_traincode(self,response):
         ret = response.body.decode("utf-8")
         if "网络可能存在问题" in ret:
-            self.log("多次下载依然错误:"+response.request.url)
+            self.log("多次下载依然错误:"+response.request.url,level=logging.INFO)
             return
 
         #解析json
@@ -130,7 +130,7 @@ class TrainSpider(scrapy.Spider):
 
                 # 优先取始发终到车次信息 过滤掉不是始发终到的车次
                 if tl_s[4]!=tl_s[6] or tl_s[5]!=tl_s[7]:
-                    self.log("ignore data: %s|%s|%s|%s"%(tl_s[4],tl_s[5],tl_s[6],tl_s[7]),level=logging.INFO)
+                    # self.log("ignore data: %s|%s|%s|%s"%(tl_s[4],tl_s[5],tl_s[6],tl_s[7]),level=logging.INFO)
                     continue
 
                 item = TrainCodeItem()
@@ -161,7 +161,7 @@ class TrainSpider(scrapy.Spider):
     def get_traindetail(self,response):
         ret = response.body.decode("utf-8")
         if "网络可能存在问题" in ret:
-            self.log("多次下载依然错误:"+response.request.url)
+            self.log("多次下载依然错误:"+response.request.url,level=logging.INFO)
             return
         if "200" in ret:
             ret = json.loads(ret)
@@ -174,4 +174,4 @@ class TrainSpider(scrapy.Spider):
             yield item
 
         else:
-            self.log("获取车次详情失败")
+            self.log("获取车次详情失败",level=logging.INFO)

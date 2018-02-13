@@ -107,9 +107,17 @@ class LocalRetryMiddlewares(RetryMiddleware):
     def process_response(self, request, response, spider):
         if request.meta.get('dont_retry', False):
             return response
-        if response.status in self.retry_http_codes:
-            reason = response_status_message(response.status)
-            return self._retry(request, reason, spider) or response
+        # if response.status in self.retry_http_codes:
+        #     reason = response_status_message(response.status)
+        #     return self._retry(request, reason, spider) or response
+        if 'dataloss' in response.flags:
+            return self._retry(request, 'Got Data Los', spider) or response
+
+
+
+        if int(response.status) != 200:
+            # reason = response_status_message(response.status)
+            return self._retry(request, '非200返回', spider) or response
 
         # 自定义 retry机制
         ret = response.body.decode('utf-8')
@@ -149,7 +157,7 @@ class LocalRetryMiddlewares(RetryMiddleware):
 
         stats.inc_value('retry/count')
         stats.inc_value('retry/reason_count/%s' % reason)
-        print("retrying.."+str(retry_times))
+        # print("retrying.."+str(retry_times))
 
         return retryreq
     # #     # else:

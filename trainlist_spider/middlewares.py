@@ -144,7 +144,7 @@ class LocalRetryMiddlewares(RetryMiddleware):
 
         stats = spider.crawler.stats
         # if retries <= retry_times:
-        logger.debug("Retrying %(request)s (failed %(retries)d times): %(reason)s",
+        logger.info("Retrying %(request)s (failed %(retries)d times): %(reason)s",
                      {'request': request, 'retries': retries, 'reason': reason},
                      extra={'spider': spider})
         retryreq = request.copy()

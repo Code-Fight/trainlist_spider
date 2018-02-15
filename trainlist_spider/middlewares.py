@@ -7,6 +7,8 @@
 
 from scrapy import signals
 from scrapy.downloadermiddlewares.retry import *
+from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
+import random
 
 
 class TrainlistSpiderSpiderMiddleware(object):
@@ -56,7 +58,6 @@ class TrainlistSpiderSpiderMiddleware(object):
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
 
-
 class TrainlistSpiderDownloaderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
@@ -103,7 +104,11 @@ class TrainlistSpiderDownloaderMiddleware(object):
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
 
+
 class LocalRetryMiddlewares(RetryMiddleware):
+    '''
+    重试中间件
+    '''
     def process_response(self, request, response, spider):
         if request.meta.get('dont_retry', False):
             return response
@@ -144,7 +149,7 @@ class LocalRetryMiddlewares(RetryMiddleware):
 
         stats = spider.crawler.stats
         # if retries <= retry_times:
-        logger.info("Retrying %(request)s (failed %(retries)d times): %(reason)s",
+        logger.debug("Retrying %(request)s (failed %(retries)d times): %(reason)s",
                      {'request': request, 'retries': retries, 'reason': reason},
                      extra={'spider': spider})
         retryreq = request.copy()
@@ -166,3 +171,21 @@ class LocalRetryMiddlewares(RetryMiddleware):
         #                  {'request': request, 'retries': retries, 'reason': reason},
         #                  extra={'spider': spider})
 
+
+class MyUserAgentMiddleware(UserAgentMiddleware):
+    '''
+    随机 User-Agent 中间件
+    '''
+    def __init__(self, user_agent):
+        self.user_agent = user_agent
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+            user_agent=crawler.settings.get('MY_USER_AGENT')
+        )
+
+    def process_request(self, request, spider):
+        agent = random.choice(self.user_agent)
+        request.headers['User-Agent'] = agent
+        logger.info(request.headers['User-Agent'])

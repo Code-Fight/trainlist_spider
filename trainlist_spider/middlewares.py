@@ -188,4 +188,4 @@ class MyUserAgentMiddleware(UserAgentMiddleware):
     def process_request(self, request, spider):
         agent = random.choice(self.user_agent)
         request.headers['User-Agent'] = agent
-        logger.info(request.headers['User-Agent'])
+        logger.debug(request.headers['User-Agent'])

@@ -33,8 +33,8 @@ for tm in trian_list.keys():
             s.add(ret[0])
             # print(train['train_no'])
             # post.insert(dict(train))
-            # if post.find({'train_no':train['train_no']}).count()==0:
-            #     post.insert(dict(train))
+            if post.find({'station_train_code':train['station_train_code']}).count()==0:
+                post.insert(dict(train))
 
 print(len(s))
 for ss in s:

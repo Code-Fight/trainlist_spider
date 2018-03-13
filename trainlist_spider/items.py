@@ -31,3 +31,20 @@ class TrainDetailItem(scrapy.Item):
     TrainCode = scrapy.Field()
     Info = scrapy.Field()
     QueryDate =scrapy.Field()
+
+# 车次途径站信息 V2
+class TrainDetailItem(scrapy.Item):
+    TrainNo = scrapy.Field()
+    TrainCode = scrapy.Field()
+    QueryDate =scrapy.Field()
+    start_station_name = scrapy.Field()
+    arrive_time = scrapy.Field()
+    station_train_code = scrapy.Field()
+    station_name = scrapy.Field()
+    train_class_name = scrapy.Field()
+    service_type = scrapy.Field()
+    start_time = scrapy.Field()
+    stopover_time = scrapy.Field()
+    end_station_name = scrapy.Field()
+    station_no = scrapy.Field()
+    isEnabled = scrapy.Field()

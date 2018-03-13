@@ -163,6 +163,7 @@ class TrainSpider(scrapy.Spider):
                 item['StartTime'] = tl_s[8]
                 item['EndTime'] = tl_s[9]
                 item['TakeTime'] = tl_s[10]
+                item['StartDate'] = tl_s[13]
                 item['QueryDate'] = self.query_date
                 item['Info'] = tl
                 yield item
@@ -179,7 +180,7 @@ class TrainSpider(scrapy.Spider):
 
 
 
-    #获取车次详细信息
+    #获取车次 途径站信息
     def get_traindetail(self,response):
         ret = response.body.decode("utf-8")
         if "网络可能存在问题" in ret:
@@ -188,12 +189,29 @@ class TrainSpider(scrapy.Spider):
         if "200" in ret:
             ret = json.loads(ret)
             ret = ret['data']['data']
-            item = TrainDetailItem()
-            item['Info'] = ret
-            item['TrainNo'] = response.meta['TrainNo']
-            item['TrainCode'] = response.meta['TrainCode']
-            item['QueryDate'] = self.query_date
-            yield item
+            # item = TrainDetailItem()
+            # item['Info'] = ret
+            # item['TrainNo'] = response.meta['TrainNo']
+            # item['TrainCode'] = response.meta['TrainCode']
+            # item['QueryDate'] = self.query_date
+
+            # 再次发起请求 反推 每个车站的信息
+            ret = json.loads(ret)
+            for r in ret:
+                train_url = "https://kyfw.12306.cn/otn/leftTicket/" + self.queryUrl + "?leftTicketDTO.train_date=" + self.query_date + \
+                            "&leftTicketDTO.from_station=" + self.stations_dic[r[""]] + \
+                            "&leftTicketDTO.to_station=" + self.stations_dic[r[""]] + "&purpose_codes=ADULT"
+                # print(train_url)
+                # return
+                yield scrapy.Request(train_url, callback=self.get_traincode,meta=r)
+
+
+
+            # yield item
 
         else:
             self.log("获取车次详情失败",level=logging.INFO)
+
+    # 通过途径站信息 反推 每个车站的发到站
+    def get_train_other_detail(self,response):
+        pass

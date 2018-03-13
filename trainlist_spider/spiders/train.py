@@ -215,3 +215,4 @@ class TrainSpider(scrapy.Spider):
     # 通过途径站信息 反推 每个车站的发到站
     def get_train_other_detail(self,response):
         pass
+    pass

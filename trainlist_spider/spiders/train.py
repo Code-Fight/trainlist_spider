@@ -14,20 +14,42 @@ class TrainSpider(scrapy.Spider):
     allowed_domains = ['12306.cn']
     start_urls = ['https://12306.cn/',]
 
-    # 获取所有站站数据
+
+    # 请求 leftTicket/init
     def start_requests(self):
+        yield scrapy.Request("https://kyfw.12306.cn/otn/leftTicket/init", callback=self.get_queryurl)
 
-        # 初始化查询时间
-        querydata = 1
-        if settings['QUERY_DATE']:
-            querydata = int(settings['QUERY_DATE'])
 
-        self.query_date = (datetime.datetime.now() + datetime.timedelta(days=querydata)).strftime("%Y-%m-%d")
 
-        self.log("准备加载50M的站站组合信息，请耐心等待吧...",level=logging.INFO)
-        yield scrapy.Request("https://kyfw.12306.cn/otn/resources/js/query/train_list.js",callback=self.get_ftstations)
 
-    # 获取站点简码
+
+    # 获取 queryurl  &  请求train_list.js
+    def get_queryurl(self,response):
+
+        try:
+            self.queryUrl = re.findall('var CLeftTicketUrl = \'leftTicket/(.*?)\';', response.body.decode('utf-8'),re.S)[0]
+            self.log('获取queryurl成功 : '+self.queryUrl, logging.INFO)
+
+            # 初始化查询时间
+            querydata = 1
+            if settings['QUERY_DATE']:
+                querydata = int(settings['QUERY_DATE'])
+
+            self.query_date = (datetime.datetime.now() + datetime.timedelta(days=querydata)).strftime("%Y-%m-%d")
+
+            self.log("准备加载50M的站站组合信息，请耐心等待吧...", level=logging.INFO)
+            yield scrapy.Request("https://kyfw.12306.cn/otn/resources/js/query/train_list.js",
+                                 callback=self.get_ftstations)
+
+        except BaseException:
+            self.log('获取queryurl失败',logging.ERROR)
+            return
+
+
+
+
+
+    # 获取train_list.js & 请求station_name.js
     def get_ftstations(self,response):
 
         ret = response.body.decode('utf-8')
@@ -98,7 +120,7 @@ class TrainSpider(scrapy.Spider):
             # print(e_station in self.stations)
 
             if s_station in self.stations_dic and e_station in self.stations_dic:
-                train_url = "https://kyfw.12306.cn/otn/leftTicket/queryZ?leftTicketDTO.train_date=" + self.query_date + \
+                train_url = "https://kyfw.12306.cn/otn/leftTicket/" + self.queryUrl + "?leftTicketDTO.train_date=" + self.query_date + \
                             "&leftTicketDTO.from_station=" + self.stations_dic[s_station] + \
                             "&leftTicketDTO.to_station=" + self.stations_dic[e_station] + "&purpose_codes=ADULT"
                 # print(train_url)

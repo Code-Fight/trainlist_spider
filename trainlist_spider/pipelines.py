@@ -26,10 +26,12 @@ class TrainCodeListPipline(object):
         # 选择表（集合）
         self.train_code_list = mdb["train_code_list"]
         self.train_code_detail = mdb["train_code_detail"]
-
+        self.train_code_detail_v2 = mdb["train_code_detail_v2"]
+        self.count = 0
 
     def process_item(self, item, spider):
         data = dict(item)
+
 
         # 列车时刻表
         if isinstance(item,TrainCodeItem):
@@ -42,9 +44,18 @@ class TrainCodeListPipline(object):
                 self.train_code_list.insert(data)
         # 列车详细信息
         elif isinstance(item,TrainDetailItem):
+            self.count +=1
+            # print("item:"+str(self.count))
             db_ret = self.train_code_detail.find_one({'TrainCode': item['TrainCode'], 'QueryDate': item['QueryDate']})
             if db_ret is None:
                 self.train_code_detail.insert(data)
+            # else:
+                # print(db_ret)
+        # 列车途径站 升级版 v2
+        elif isinstance(item,TrainDetailItem_v2):
+            db_ret = self.train_code_detail_v2.find_one({'TrainCode': item['TrainCode'], 'QueryDate': item['QueryDate'], 'station_no': item['station_no']})
+            if db_ret is None:
+                self.train_code_detail_v2.insert(data)
 
         return item
 

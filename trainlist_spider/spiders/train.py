@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
+
 import scrapy
 import re
 import datetime
 import json
-from trainlist_spider.items import TrainCodeItem
-from trainlist_spider.items import TrainDetailItem
+
+from trainlist_spider.items import *
 from scrapy.conf import settings
 import logging
 
@@ -18,8 +18,6 @@ class TrainSpider(scrapy.Spider):
     # 请求 leftTicket/init
     def start_requests(self):
         yield scrapy.Request("https://kyfw.12306.cn/otn/leftTicket/init", callback=self.get_queryurl)
-
-
 
 
 
@@ -125,7 +123,7 @@ class TrainSpider(scrapy.Spider):
                             "&leftTicketDTO.to_station=" + self.stations_dic[e_station] + "&purpose_codes=ADULT"
                 # print(train_url)
                 # return
-                yield scrapy.Request(train_url, callback=self.get_traincode)
+                yield scrapy.Request(train_url, callback=self.get_traincode, dont_filter=True)
                 # return
 
 
@@ -136,6 +134,7 @@ class TrainSpider(scrapy.Spider):
 
     #获取列车车次
     def get_traincode(self,response):
+        # return
         ret = response.body.decode("utf-8")
         if "网络可能存在问题" in ret:
             self.log("多次下载依然错误:"+response.request.url,level=logging.INFO)
@@ -155,6 +154,9 @@ class TrainSpider(scrapy.Spider):
                     # self.log("ignore data: %s|%s|%s|%s"%(tl_s[4],tl_s[5],tl_s[6],tl_s[7]),level=logging.INFO)
                     continue
 
+                if "停运" in tl or "暂停发售" in tl:
+                    continue
+
                 item = TrainCodeItem()
                 item['TrainNo'] = tl_s[2]
                 item['TrainCode'] = tl_s[3]
@@ -163,7 +165,7 @@ class TrainSpider(scrapy.Spider):
                 item['StartTime'] = tl_s[8]
                 item['EndTime'] = tl_s[9]
                 item['TakeTime'] = tl_s[10]
-                item['StartDate'] = tl_s[13]
+                item['StartDate'] = datetime.datetime.strptime(tl_s[13],'%Y%m%d')
                 item['QueryDate'] = self.query_date
                 item['Info'] = tl
                 yield item
@@ -173,7 +175,7 @@ class TrainSpider(scrapy.Spider):
                                "&from_station_telecode="+ tl_s[4] +\
                                "&to_station_telecode="+ tl_s[5] +\
                                "&depart_date="+ tl_s[13][0:4]+"-"+tl_s[13][4:6]+"-"+tl_s[13][6:]
-                yield scrapy.Request(train_detail_url,callback=self.get_traindetail,meta=item)
+                yield scrapy.Request(train_detail_url,callback=self.get_traindetail,meta=item, dont_filter=True)
 
 
 
@@ -183,36 +185,252 @@ class TrainSpider(scrapy.Spider):
     #获取车次 途径站信息
     def get_traindetail(self,response):
         ret = response.body.decode("utf-8")
-        if "网络可能存在问题" in ret:
-            self.log("多次下载依然错误:"+response.request.url,level=logging.INFO)
-            return
+        # self.log(ret, level=logging.INFO)
+
         if "200" in ret:
             ret = json.loads(ret)
             ret = ret['data']['data']
-            # item = TrainDetailItem()
-            # item['Info'] = ret
-            # item['TrainNo'] = response.meta['TrainNo']
-            # item['TrainCode'] = response.meta['TrainCode']
-            # item['QueryDate'] = self.query_date
 
-            # 再次发起请求 反推 每个车站的信息
-            ret = json.loads(ret)
-            for r in ret:
-                train_url = "https://kyfw.12306.cn/otn/leftTicket/" + self.queryUrl + "?leftTicketDTO.train_date=" + self.query_date + \
-                            "&leftTicketDTO.from_station=" + self.stations_dic[r[""]] + \
-                            "&leftTicketDTO.to_station=" + self.stations_dic[r[""]] + "&purpose_codes=ADULT"
-                # print(train_url)
-                # return
-                yield scrapy.Request(train_url, callback=self.get_traincode,meta=r)
+
+            if len(ret) == 0:
+                self.log("没有获取到途径站数据:"+str(response.request.url), level=logging.INFO)
+                return
+
+
+            # item = TrainDetailItem_v2()
 
 
 
-            # yield item
+            # 非直达列车
+            if len(ret) > 2:
+
+                station_no = 2
+                train_list = response.meta
+                detail_info = ret
+
+                # 第一个车站的信息
+                detail_info[0]['start_station_name'] = train_list['StartStation']
+                detail_info[0]['end_station_name'] = train_list['EndStation']
+                detail_info[0]['arrive_train_code'] = '----'
+                detail_info[0]['depart_train_code'] = train_list['TrainCode']
+
+
+                for i in range(1, len(ret)-1):
+                    detail_info[i]['start_station_name'] = train_list['StartStation']
+                    detail_info[i]['train_class_name'] = ret[0]['train_class_name']
+                    detail_info[i]['service_type'] = ret[0]['service_type']
+                    detail_info[i]['end_station_name'] = train_list['EndStation']
+                    detail_info[i]['arrive_train_code'] = detail_info[i-1]['depart_train_code']
+                    detail_info[i]['depart_train_code'] = ''
+
+                    if self.stations_dic.get(detail_info[i]['station_name']) and self.stations_dic.get(detail_info[i+1]['station_name']):
+
+
+                        train_url = "https://kyfw.12306.cn/otn/leftTicket/" + self.queryUrl + "?leftTicketDTO.train_date=" + self.query_date + \
+                                    "&leftTicketDTO.from_station=" + self.stations_dic[ret[i]['station_name']] + \
+                                    "&leftTicketDTO.to_station=" + self.stations_dic[ret[i + 1]["station_name"]] + \
+                                    "&purpose_codes=ADULT"
+                        # print(train_url)
+                        # return
+                        yield scrapy.Request(train_url, callback=self.q_get_detail, dont_filter=True, meta={
+                            'station_no': station_no,
+                            'train_list':train_list,
+                            'detail_info':detail_info})
+                        # station_no += 1
+                        break
+                    else:
+                        station_no += 1
+                else:
+                    # 进到这里 说明 车次列表没有该车次信息 ，并且已经循环完了，那么直接添加到途径站信息
+                    detail_info[len(ret)-1]['start_station_name'] = train_list['StartStation']
+                    detail_info[len(ret)-1]['train_class_name'] = ret[0]['train_class_name']
+                    detail_info[len(ret)-1]['service_type'] = ret[0]['service_type']
+                    detail_info[len(ret)-1]['end_station_name'] = train_list['EndStation']
+                    detail_info[len(ret)-1]['arrive_train_code'] = detail_info[len(ret)- 2]['depart_train_code']
+                    detail_info[len(ret)-1]['depart_train_code'] = ''
+
+                    item = TrainDetailItem()
+                    item['TrainNo'] = response.meta['TrainNo']
+                    item['TrainCode'] = response.meta['TrainCode']
+                    item['QueryDate'] = self.query_date
+                    item['Info'] = (detail_info)
+                    yield item
+
+
+
+            # 直达列车
+            elif len(ret) == 2:
+                item = TrainDetailItem()
+                item['TrainNo'] = response.meta['TrainNo']
+                item['TrainCode'] = response.meta['TrainCode']
+                item['QueryDate'] = self.query_date
+                info_list = []
+
+                for r in ret:
+                    temp  = TrainDetailInfo()
+                    temp['start_date'] = str(response.meta['StartDate'])
+                    temp['start_station_name'] = str(response.meta['StartStation'])
+                    temp['arrive_time'] = r['arrive_time']
+                    temp['arrive_train_code'] = str(response.meta['TrainCode'])
+                    temp['depart_train_code'] = str(response.meta['TrainCode'])
+                    temp['station_name'] = r['station_name']
+                    temp['train_class_name'] = str(ret[0]['train_class_name'])
+                    temp['service_type'] = str(ret[0]['service_type'])
+                    temp['start_time'] = r['start_time']
+                    temp['stopover_time'] = r['stopover_time']
+                    temp['end_station_name'] = str(response.meta['EndStation'])
+                    temp['station_no'] = r['station_no']
+                    temp['isEnabled'] = r['isEnabled']
+                    info_list.append(temp)
+
+                info_list[0]['arrive_train_code'] = '----'
+                info_list[1]['depart_train_code'] = '----'
+                item['Info'] = info_list
+                yield item
+
+            else:
+                self.log("不知道什么类型的车："+ str(response.body.decode("utf-8")),level=logging.INFO)
+
 
         else:
             self.log("获取车次详情失败",level=logging.INFO)
 
-    # 通过途径站信息 反推 每个车站的发到站
-    def get_train_other_detail(self,response):
-        pass
-    pass
+
+    def q_get_detail(self,response):
+        ret = response.body.decode("utf-8")
+        station_no = response.meta['station_no']
+        detail_info = response.meta['detail_info']
+        train_list = response.meta['train_list']
+        # self.log(ret, level=logging.INFO)
+        json_ret = json.loads(ret)
+
+        if len(json_ret['data']['result']) <= 0:
+            # self.log("没有取到数据" + str(json.dumps(json_ret['data']['result'])), level=logging.INFO)
+            self.log("没有取到数据:"+str(response.request.url),level=logging.INFO)
+            self.log("没有取到数据:" + str(json.dumps(json_ret)), level=logging.INFO)
+
+            # 继续 取下一个车次
+            yield self.queue_train_detail(station_no, train_list, detail_info, '')
+            # for i,q in enumerate(queue):
+            #     print("q_index:"+str(i))
+            return
+
+
+        ret_train_list = json_ret['data']['result']
+        for tl in ret_train_list:
+            tl_s = tl.split('|')
+
+            if train_list['TrainNo'] == tl_s[2]:
+                c_train_code = tl_s[3]
+                # next(self.queue_train_detail(station_no, train_list, detail_info, c_train_code))
+                yield self.queue_train_detail(station_no, train_list, detail_info, c_train_code)
+                # for i, q in enumerate(queue):
+                #     print("q_index:" + str(i))
+                break
+
+
+        else:
+            self.log("没有找到匹配的车次:%s 信息：%s"%(train_list['TrainNo'],str(response.request.url)),level=logging.INFO)
+            # 继续 取下一个车次
+            # next(self.queue_train_detail(station_no , train_list, detail_info, ''))
+            yield self.queue_train_detail(station_no, train_list, detail_info, '')
+            # for i, q in enumerate(queue):
+            #     print("q_index:" + str(i))
+            # return
+
+
+
+    def queue_train_detail(self, station_no, train_list, detail_info, c_train_code):
+
+        '''
+        通过站续 途径站信息 来发起新的请求 获取途径站
+        :param station_no: 站续
+        :param train_list: 主时刻表信息
+        :param detail_info: 所有途径站信息
+        :return:
+        '''
+        # 更改前一个站的 到达和出发车次
+
+
+        detail_info[int(station_no) - 1]['arrive_train_code'] = detail_info[int(station_no) - 2]['depart_train_code']
+        detail_info[int(station_no) - 1]['depart_train_code'] = c_train_code
+
+        # 更改当前站
+        detail_info[int(station_no)]['start_station_name'] = train_list['StartStation']
+        detail_info[int(station_no)]['train_class_name'] = detail_info[0]['train_class_name']
+        detail_info[int(station_no)]['service_type'] = detail_info[0]['service_type']
+        detail_info[int(station_no)]['end_station_name'] = train_list['EndStation']
+        detail_info[int(station_no)]['arrive_train_code'] = c_train_code
+        detail_info[int(station_no)]['depart_train_code'] = ''
+
+        if int(station_no) < (len(detail_info) - 1):
+
+            # 需要再一次发起请求 因为站续小于倒数第二个
+
+            # 再次发起请求 取下一个途径站信息
+            queue = range(int(station_no), len(detail_info) - 1)
+
+            for i in queue:
+
+                if self.stations_dic.get(detail_info[i]['station_name']) and self.stations_dic.get(
+                        detail_info[i + 1]['station_name']):
+
+                    train_url = "https://kyfw.12306.cn/otn/leftTicket/" + self.queryUrl + "?leftTicketDTO.train_date=" + self.query_date + \
+                                "&leftTicketDTO.from_station=" + self.stations_dic[detail_info[i]['station_name']] + \
+                                "&leftTicketDTO.to_station=" + self.stations_dic[detail_info[i + 1]["station_name"]] + \
+                                "&purpose_codes=ADULT"
+                    # print(train_url)
+                    # return
+                    station_no += 1
+
+                    return scrapy.Request(train_url, callback=self.q_get_detail, dont_filter=True, meta={
+                        'station_no': station_no,
+                        'train_list': train_list,
+                        'detail_info': detail_info})
+
+                    break
+                else:
+                    station_no += 1
+
+                    # 更改前一个站的 到达和出发车次
+                    detail_info[int(station_no) - 1]['arrive_train_code'] = detail_info[int(station_no) - 2][
+                        'depart_train_code']
+                    detail_info[int(station_no) - 1]['depart_train_code'] = ''
+
+                    # 更改当前站
+                    detail_info[int(station_no)]['start_station_name'] = train_list['StartStation']
+                    detail_info[int(station_no)]['train_class_name'] = detail_info[0][
+                        'train_class_name']
+                    detail_info[int(station_no)]['service_type'] = detail_info[0]['service_type']
+                    detail_info[int(station_no)]['end_station_name'] = train_list['EndStation']
+                    detail_info[int(station_no)]['arrive_train_code'] = c_train_code
+                    detail_info[int(station_no)]['depart_train_code'] = ''
+            else:
+                # 增加数据
+                item = TrainDetailItem()
+                item['TrainNo'] = train_list['TrainNo']
+                item['TrainCode'] = train_list['TrainCode']
+                item['QueryDate'] = self.query_date
+                item['Info'] = (detail_info)
+
+                return item
+
+
+        elif int(station_no) == (len(detail_info) - 1):
+            # 如果途径站的数量 等于 站续 说明已经是最后两个车站了 那么只增加下一个站的到站车次 即可
+            # 增加下一个途径站的部分信息
+
+            # 增加数据
+            item = TrainDetailItem()
+            item['TrainNo'] = train_list['TrainNo']
+            item['TrainCode'] = train_list['TrainCode']
+            item['QueryDate'] = self.query_date
+            item['Info'] = (detail_info)
+
+            return item
+
+        else:
+            self.log("坐标超了？车次：%s,站续：%s"%(c_train_code,station_no))
+
+
+

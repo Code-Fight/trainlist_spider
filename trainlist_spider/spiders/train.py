@@ -1,4 +1,3 @@
-
 import scrapy
 import re
 import datetime
@@ -177,7 +176,8 @@ class TrainSpider(scrapy.Spider):
                                "&depart_date="+ tl_s[13][0:4]+"-"+tl_s[13][4:6]+"-"+tl_s[13][6:]
                 yield scrapy.Request(train_detail_url,callback=self.get_traindetail,meta=item, dont_filter=True)
 
-
+        else:
+            print("车次列表获取失败："+str(response.request.url))
 
 
 
@@ -224,7 +224,6 @@ class TrainSpider(scrapy.Spider):
                     detail_info[i]['depart_train_code'] = ''
 
                     if self.stations_dic.get(detail_info[i]['station_name']) and self.stations_dic.get(detail_info[i+1]['station_name']):
-
 
                         train_url = "https://kyfw.12306.cn/otn/leftTicket/" + self.queryUrl + "?leftTicketDTO.train_date=" + self.query_date + \
                                     "&leftTicketDTO.from_station=" + self.stations_dic[ret[i]['station_name']] + \
@@ -304,7 +303,31 @@ class TrainSpider(scrapy.Spider):
         # self.log(ret, level=logging.INFO)
         json_ret = json.loads(ret)
 
-        if len(json_ret['data']['result']) <= 0:
+        if len(json_ret['data']['result']) > 0:
+            ret_train_list = json_ret['data']['result']
+            for tl in ret_train_list:
+                tl_s = tl.split('|')
+
+                if train_list['TrainNo'] == tl_s[2]:
+                    c_train_code = tl_s[3]
+                    # next(self.queue_train_detail(station_no, train_list, detail_info, c_train_code))
+                    yield self.queue_train_detail(station_no, train_list, detail_info, c_train_code)
+                    # for i, q in enumerate(queue):
+                    #     print("q_index:" + str(i))
+                    break
+
+
+            else:
+                # self.log("没有找到匹配的车次:%s 信息：%s"%(train_list['TrainNo'],str(response.request.url)),level=logging.INFO)
+                # 继续 取下一个车次
+                # next(self.queue_train_detail(station_no , train_list, detail_info, ''))
+                yield self.queue_train_detail(station_no, train_list, detail_info, '')
+                # for i, q in enumerate(queue):
+                #     print("q_index:" + str(i))
+                # return
+
+        else:
+
             # self.log("没有取到数据" + str(json.dumps(json_ret['data']['result'])), level=logging.INFO)
             self.log("没有取到数据:"+str(response.request.url),level=logging.INFO)
             self.log("没有取到数据:" + str(json.dumps(json_ret)), level=logging.INFO)
@@ -313,30 +336,10 @@ class TrainSpider(scrapy.Spider):
             yield self.queue_train_detail(station_no, train_list, detail_info, '')
             # for i,q in enumerate(queue):
             #     print("q_index:"+str(i))
-            return
 
 
-        ret_train_list = json_ret['data']['result']
-        for tl in ret_train_list:
-            tl_s = tl.split('|')
-
-            if train_list['TrainNo'] == tl_s[2]:
-                c_train_code = tl_s[3]
-                # next(self.queue_train_detail(station_no, train_list, detail_info, c_train_code))
-                yield self.queue_train_detail(station_no, train_list, detail_info, c_train_code)
-                # for i, q in enumerate(queue):
-                #     print("q_index:" + str(i))
-                break
 
 
-        else:
-            self.log("没有找到匹配的车次:%s 信息：%s"%(train_list['TrainNo'],str(response.request.url)),level=logging.INFO)
-            # 继续 取下一个车次
-            # next(self.queue_train_detail(station_no , train_list, detail_info, ''))
-            yield self.queue_train_detail(station_no, train_list, detail_info, '')
-            # for i, q in enumerate(queue):
-            #     print("q_index:" + str(i))
-            # return
 
 
 

@@ -146,11 +146,13 @@ class LocalRetryMiddlewares(RetryMiddleware):
             # 车次列表
             json_ret = json.loads(ret)
             if len(json_ret['data']['result']) <= 0:
+                request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
                 return self._retry(request, 'maybe baned！', spider) or response
         elif 'train_no' in  request.url:
             # 途径站信息
             json_ret = json.loads(ret)
             if len(json_ret['data']['data']) == 0:
+                request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
                 return self._retry(request, 'maybe baned！', spider) or response
 
 
@@ -159,9 +161,9 @@ class LocalRetryMiddlewares(RetryMiddleware):
 
         return response
 
-    # 改写重试机制，不再看次数了。。。。失败了 一直重试
+    # 改写重试机制
     def _retry(self, request, reason, spider):
-        retries = request.meta.get('retry_times', 0) + 1
+        retries = request.meta.get('retry_times', 0)
 
         retry_times = self.max_retry_times
 
@@ -170,10 +172,17 @@ class LocalRetryMiddlewares(RetryMiddleware):
 
         stats = spider.crawler.stats
         # if retries <= retry_times:
+        retryreq = request.copy()
+        if retries > 10:
+            logger.debug("超过10次 :"+str(request.url))
+            retryreq.meta['retry_times'] = 0
+            return None
+
         logger.debug("Retrying %(request)s (failed %(retries)d times): %(reason)s",
                      {'request': request, 'retries': retries, 'reason': reason},
                      extra={'spider': spider})
-        retryreq = request.copy()
+
+
         retryreq.meta['retry_times'] = retries
         retryreq.dont_filter = True
         retryreq.priority = request.priority + self.priority_adjust
@@ -248,7 +257,7 @@ class MyProxyMiddlewareddd(object):
             # 获取新的ip地址
             free_url = 'http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=0&city=0&yys=0&port=1&pack=15345&ts=1&ys=0&cs=0&lb=1&sb=0&pb=45&mr=1&regions='
             url = "http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=0&city=0&yys=0&port=1&time=1&ts=1&ys=0&cs=0&lb=1&sb=0&pb=45&mr=1&regions="
-            ret = requests.get(url)
+            ret = requests.get(free_url)
             ret_json =ret.json()
 
             if not ret_json['success']:

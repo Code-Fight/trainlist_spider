@@ -35,8 +35,9 @@ class TrainSpider(scrapy.Spider):
             if settings['QUERY_DATE']:
                 querydata = int(settings['QUERY_DATE'])
 
-            self.query_date = (datetime.datetime.now() + datetime.timedelta(days=querydata)).strftime("%Y-%m-%d")
 
+            self.query_date = (datetime.datetime.now() + datetime.timedelta(days=querydata)).strftime("%Y-%m-%d")
+            self.log("采集日期：" + self.query_date, level=logging.INFO)
             self.log("准备加载50M的站站组合信息，请耐心等待吧...", level=logging.INFO)
             yield scrapy.Request("https://kyfw.12306.cn/otn/resources/js/query/train_list.js",
                                  callback=self.get_ftstations)

@@ -21,7 +21,7 @@ MONGODB_DBNAME = "train"
 
 
 #QueryData 默认查询延后时间
-QUERY_DATE = 6
+QUERY_DATE = 1
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
@@ -74,7 +74,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.1
+# DOWNLOAD_DELAY = 0.1
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -117,6 +117,7 @@ RETRY_HTTP_CODES = [302,] # 302为了应对网络错误
 DOWNLOADER_MIDDLEWARES = {
    'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
     'trainlist_spider.middlewares.LocalRetryMiddlewares':200,
+    'trainlist_spider.middlewares.MyProxyMiddlewareddd':250,
     'trainlist_spider.middlewares.MyUserAgentMiddleware':300,
 }
 
@@ -136,7 +137,7 @@ ITEM_PIPELINES = {
 
 #LOG
 LOG_FILE="log.txt"
-LOG_LEVEL='INFO'
+LOG_LEVEL='DEBUG'
 LOG_ENCODING='gbk'
 
 # Got Data Los

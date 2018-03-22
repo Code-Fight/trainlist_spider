@@ -9,6 +9,9 @@ from scrapy import signals
 from scrapy.downloadermiddlewares.retry import *
 from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
 import random
+import requests
+import time
+import datetime
 
 
 class TrainlistSpiderSpiderMiddleware(object):
@@ -189,3 +192,81 @@ class MyUserAgentMiddleware(UserAgentMiddleware):
         agent = random.choice(self.user_agent)
         request.headers['User-Agent'] = agent
         logger.debug(request.headers['User-Agent'])
+
+
+
+class MyProxyMiddlewareddd(object):
+    '''
+    设置 Proxy 中间件
+    '''
+
+    def __init__(self, ip, port, expire_time):
+        self.proxy ={}
+        self.proxy['ip'] = ip
+        self.proxy['port'] = port
+        self.proxy['expire_time'] = expire_time
+
+    @classmethod
+    def from_crawler(cls, crawler):
+
+        return cls(
+            ip = '',
+            port = '',
+            expire_time = datetime.datetime(2013, 8, 10, 10, 56, 10, 611490)
+            # 用过去的一个时间来初始化
+        )
+
+    def process_request(self, request, spider):
+
+
+
+        timeout_tims = 0
+        exception_tims = 0
+
+        # 如果当前剩余时间 小于 当前时间  代表ip过期 那么需要重新获取一个新的ip
+        while  ((self.proxy['expire_time'] - datetime.timedelta(seconds=30)) < datetime.datetime.now()):
+
+            # 获取新的ip地址
+            free_url = 'http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=0&city=0&yys=0&port=1&pack=15345&ts=1&ys=0&cs=0&lb=1&sb=0&pb=45&mr=1&regions='
+            url = "http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=0&city=0&yys=0&port=1&time=1&ts=1&ys=0&cs=0&lb=1&sb=0&pb=45&mr=1&regions="
+            ret = requests.get(url)
+            ret_json =ret.json()
+
+            if not ret_json['success']:
+                continue
+
+
+
+            proxies = {'http': 'http://'+str(ret_json['data'][0]['ip'])+':'+str(ret_json['data'][0]['port']),
+                       'https': 'http://'+str(ret_json['data'][0]['ip'])+':'+str(ret_json['data'][0]['port'])}
+            url = "http://2017.ip138.com/ic.asp"
+            reason = ''
+            try:
+                re = requests.get(url, proxies=proxies, timeout=10)
+                if ret_json['data'][0]['ip'] in re.text:
+                    # 成功得到ip地址
+                    self.proxy['ip'] = ret_json['data'][0]['ip']
+                    self.proxy['port'] = ret_json['data'][0]['port']
+                    self.proxy['expire_time'] = datetime.datetime.strptime(ret_json['data'][0]['expire_time'],'%Y-%m-%d %H:%M:%S')
+                    break
+            except requests.exceptions.ConnectTimeout:
+                timeout_tims +=1
+
+            except BaseException as e:
+                exception_tims +=1
+                reason = e
+
+            if exception_tims > 5:
+                logger.error("获取代理错误 %s 次,信息：%s"%(exception_tims,reason))
+                logger.error(str(ret_json.dumps()))
+                exception_tims = 0
+                time.sleep(5)
+
+            if timeout_tims > 5:
+                logger.error("获取代理超时 %s 次,信息：%s" % (exception_tims, reason))
+                timeout_tims = 0
+                time.sleep(5)
+
+            time.sleep(2)
+
+        request.meta["proxy"] = "http://" + str(self.proxy['ip']) +":"+ str(self.proxy['port'])

@@ -1,11 +1,8 @@
 # trainlist_spider
-12306 train list
+12306 train list V3
 
-Create by Scrapy 
-## Update 2018-02-08
-1.Fix bug
-
-2.Modfiy retry 
+#IMPORTANT
+Pause V2 to develop a new version. 
 
 ## How to use
 1.Install python/scarpy/Mongodb

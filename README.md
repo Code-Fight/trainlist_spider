@@ -2,7 +2,12 @@
 12306 train list V3
 
 #IMPORTANT
-Pause V2 to develop a new version. 
+1.Pause V2 to develop a new version V3.
+  暂停开发以前的v2 目前开始一个新的v3
+2.now,crack image api 'http://192.168.2.235:8080/code' are private
+  现在，验证码识别接口是自己开发的别的接口，目前并没有配套在此项目中，请自行替换
+
+
 
 ## How to use
 1.Install python/scarpy/Mongodb

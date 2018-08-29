@@ -129,17 +129,19 @@ class LocalRetryMiddlewares(RetryMiddleware):
             return self._retry(request, '非200返回', spider) or response
 
         # 自定义 retry机制
-        ret = response.body.decode('utf-8')
-        if "网络" in ret:
-            print('retryed :' + request.url)
-            # self.log('retryed :' + request.url)
-            return self._retry(request,'网络302',spider) or response
+        ret = response.body
+        if type(response.body) != bytes:
+            ret = ret.decode('utf-8')
+            if "网络" in ret:
+                print('retryed :' + request.url)
+                # self.log('retryed :' + request.url)
+                return self._retry(request,'网络302',spider) or response
 
         if len(ret) == 0:
             return self._retry(request, '超时', spider) or response
 
-        if "200" not in ret:
-            return self._retry(request, '获取数据失败', spider) or response
+        # if "200" not in ret:
+        #     return self._retry(request, '获取数据失败', spider) or response
 
 
         if 'purpose_codes=ADULT' in request.url:
@@ -151,7 +153,7 @@ class LocalRetryMiddlewares(RetryMiddleware):
         elif 'train_no' in  request.url:
             # 途径站信息
             json_ret = json.loads(ret)
-            if len(json_ret['data']['data']) == 0:
+            if json_ret['data']['data'] == None or len(json_ret['data']['data']) == 0:
                 request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
                 return self._retry(request, 'maybe baned！', spider) or response
 
@@ -247,7 +249,6 @@ class MyProxyMiddlewareddd(object):
     def process_request(self, request, spider):
 
 
-
         timeout_tims = 0
         exception_tims = 0
 
@@ -267,7 +268,7 @@ class MyProxyMiddlewareddd(object):
 
             proxies = {'http': 'http://'+str(ret_json['data'][0]['ip'])+':'+str(ret_json['data'][0]['port']),
                        'https': 'http://'+str(ret_json['data'][0]['ip'])+':'+str(ret_json['data'][0]['port'])}
-            url = "http://2017.ip138.com/ic.asp"
+            url = "http://2018.ip138.com/ic.asp"
 
             try:
                 re = requests.get(url, proxies=proxies, timeout=10)

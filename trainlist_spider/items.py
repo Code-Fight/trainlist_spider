@@ -61,9 +61,18 @@ class TrainDetailInfo(scrapy.Item):
     # 停留时间
     stopover_time = scrapy.Field() #m
 
+    # 到达相对天数
+    arrive_day_diff = scrapy.Field()
+    arrive_day_str = scrapy.Field()
+
+    # 运行时间
+    running_time = scrapy.Field()
+
     # 站续
     station_no = scrapy.Field() # m
     isEnabled = scrapy.Field() # m
+
+
 
 
 # 车次途径站信息 V2.1

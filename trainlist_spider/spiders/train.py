@@ -28,9 +28,9 @@ class TrainSpider(scrapy.Spider):
     def start_requests(self):
         self.j_url = "https://kyfw.12306.cn/otn/queryTrainInfo/init"
         # 为了对抗 12306的验证码识别时的 4秒延迟
-        self.d_url = "http://192.168.2.118:18080/delay.ashx"
+        self.d_url = "http://192.168.2.115:20808/delay.ashx"
         # 验证码识别服务
-        self.vcode_url = "http://192.168.2.118:18888/code"
+        self.vcode_url = "http://192.168.2.235:18888/code"
         self.n_success = 0
         self.n_error = 0
         self.n_o_error = 0
@@ -232,7 +232,7 @@ class TrainSpider(scrapy.Spider):
             print(re)
             self.n_cookiejar +=1
             self.n_o_error += 1
-            s = requests.session()
+            # s = requests.session()
             cookiejar = CookieJar()
             cookiejar.extract_cookies(response, response.request)
             cj_tmp = []

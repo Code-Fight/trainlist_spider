@@ -150,12 +150,27 @@ class LocalRetryMiddlewares(RetryMiddleware):
             if len(json_ret['data']['result']) <= 0:
                 request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
                 return self._retry(request, 'maybe baned！', spider) or response
-        elif 'train_no' in  request.url:
+        elif 'train_no' in  request.url :
             # 途径站信息
             json_ret = json.loads(ret)
-            if json_ret['data']['data'] == None or len(json_ret['data']['data']) == 0:
-                request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
-                return self._retry(request, 'maybe baned！', spider) or response
+            try:
+
+                # 如果取结果的时候 出现该问题 说明 12306抽风了
+                if str(ret).find('验证码错误') :
+                    return response
+
+                # 检测 ret是否存在data   然后判断第一层data是否存在数据 然后 再看第二层data
+                if str(ret).find('data') == -1 or \
+                        json_ret['data'] == None or \
+                        json_ret['data']['data'] == None or \
+                        len(json_ret['data']['data']) == 0:
+                    request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
+                    return self._retry(request, 'maybe baned！', spider) or response
+            except Exception as e:
+                print(ret)
+
+
+
 
 
 

@@ -6,9 +6,13 @@
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+import requests
 from scrapy.downloadermiddlewares.retry import *
 from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
 import random
+import time
+import datetime
+import json
 
 
 class TrainlistSpiderSpiderMiddleware(object):
@@ -125,22 +129,43 @@ class LocalRetryMiddlewares(RetryMiddleware):
             return self._retry(request, '非200返回', spider) or response
 
         # 自定义 retry机制
-        ret = response.body.decode('utf-8')
-        if "网络" in ret:
-            print('retryed :' + request.url)
-            # self.log('retryed :' + request.url)
-            return self._retry(request,'网络302',spider) or response
+        ret = response.body
+        if type(response.body) != bytes:
+            ret = ret.decode('utf-8')
+            if "网络" in ret:
+                print('retryed :' + request.url)
+                # self.log('retryed :' + request.url)
+                return self._retry(request,'网络302',spider) or response
 
         if len(ret) == 0:
             return self._retry(request, '超时', spider) or response
+
+        # if "200" not in ret:
+        #     return self._retry(request, '获取数据失败', spider) or response
+
+
+        if 'purpose_codes=ADULT' in request.url:
+            # 车次列表
+            json_ret = json.loads(ret)
+            if len(json_ret['data']['result']) <= 0:
+                request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
+                return self._retry(request, 'maybe baned！', spider) or response
+        elif 'train_no' in  request.url:
+            # 途径站信息
+            json_ret = json.loads(ret)
+            if json_ret['data']['data'] == None or len(json_ret['data']['data']) == 0:
+                request.meta['retry_times'] = request.meta.get('retry_times', 0) + 1
+                return self._retry(request, 'maybe baned！', spider) or response
+
+
 
 
 
         return response
 
-    # 改写重试机制，不再看次数了。。。。失败了 一直重试
+    # 改写重试机制
     def _retry(self, request, reason, spider):
-        retries = request.meta.get('retry_times', 0) + 1
+        retries = request.meta.get('retry_times', 0)
 
         retry_times = self.max_retry_times
 
@@ -149,10 +174,17 @@ class LocalRetryMiddlewares(RetryMiddleware):
 
         stats = spider.crawler.stats
         # if retries <= retry_times:
+        retryreq = request.copy()
+        if retries > 10:
+            logger.debug("超过10次 :"+str(request.url))
+            retryreq.meta['retry_times'] = 0
+            return None
+
         logger.debug("Retrying %(request)s (failed %(retries)d times): %(reason)s",
                      {'request': request, 'retries': retries, 'reason': reason},
                      extra={'spider': spider})
-        retryreq = request.copy()
+
+
         retryreq.meta['retry_times'] = retries
         retryreq.dont_filter = True
         retryreq.priority = request.priority + self.priority_adjust
@@ -176,6 +208,7 @@ class MyUserAgentMiddleware(UserAgentMiddleware):
     '''
     随机 User-Agent 中间件
     '''
+
     def __init__(self, user_agent):
         self.user_agent = user_agent
 
@@ -186,6 +219,76 @@ class MyUserAgentMiddleware(UserAgentMiddleware):
         )
 
     def process_request(self, request, spider):
+
         agent = random.choice(self.user_agent)
         request.headers['User-Agent'] = agent
         logger.debug(request.headers['User-Agent'])
+
+
+class MyProxyMiddlewareddd(object):
+    '''
+    设置 Proxy 中间件
+    '''
+
+    def __init__(self, ip, port, expire_time):
+        self.proxy ={}
+        self.proxy['ip'] = ip
+        self.proxy['port'] = port
+        self.proxy['expire_time'] = expire_time
+
+    @classmethod
+    def from_crawler(cls, crawler):
+
+        return cls(
+            ip = '',
+            port = '',
+            expire_time = datetime.datetime(2013, 8, 10, 10, 56, 10, 611490)
+            # 用过去的一个时间来初始化
+        )
+
+    def process_request(self, request, spider):
+
+
+        timeout_tims = 0
+        exception_tims = 0
+
+        # 如果当前剩余时间 小于 当前时间  代表ip过期 那么需要重新获取一个新的ip
+        while  ((self.proxy['expire_time'] - datetime.timedelta(seconds=30)) < datetime.datetime.now()):
+
+            # 获取新的ip地址
+            free_url = 'http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=0&city=0&yys=0&port=1&pack=15345&ts=1&ys=0&cs=0&lb=1&sb=0&pb=45&mr=1&regions='
+            url = "http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=0&city=0&yys=0&port=1&time=1&ts=1&ys=0&cs=0&lb=1&sb=0&pb=45&mr=1&regions="
+            ret = requests.get(free_url)
+            ret_json =ret.json()
+
+            if not ret_json['success']:
+                continue
+
+
+
+            proxies = {'http': 'http://'+str(ret_json['data'][0]['ip'])+':'+str(ret_json['data'][0]['port']),
+                       'https': 'http://'+str(ret_json['data'][0]['ip'])+':'+str(ret_json['data'][0]['port'])}
+            url = "http://2018.ip138.com/ic.asp"
+
+            try:
+                re = requests.get(url, proxies=proxies, timeout=10)
+                if ret_json['data'][0]['ip'] in re.text:
+                    # 成功得到ip地址
+                    self.proxy['ip'] = ret_json['data'][0]['ip']
+                    self.proxy['port'] = ret_json['data'][0]['port']
+                    self.proxy['expire_time'] = datetime.datetime.strptime(ret_json['data'][0]['expire_time'],'%Y-%m-%d %H:%M:%S')
+                    break
+            except requests.exceptions.ConnectTimeout:
+                timeout_tims +=1
+
+            except BaseException:
+                exception_tims +=1
+
+            if exception_tims > 5:
+                logger.error("获取代理错误 %s 次"%(exception_tims))
+                time.sleep(5)
+
+            time.sleep(2)
+
+        request.meta["proxy"] = "http://" + str(self.proxy['ip']) +":"+ str(self.proxy['port'])
+

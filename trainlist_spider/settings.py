@@ -21,7 +21,7 @@ MONGODB_DBNAME = "train"
 
 
 #QueryData 默认查询延后时间
-QUERY_DATE = 22
+QUERY_DATE = 15
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
@@ -65,11 +65,15 @@ MY_USER_AGENT = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
     ]
 
+# Prox
+PROXY = '1'
+PROXY_EX = '2'
+
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 48
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
@@ -80,7 +84,8 @@ DOWNLOAD_DELAY = 0.1
 #CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-COOKIES_ENABLED = False
+COOKIES_ENABLED = True
+COOKIES_DEBUG = True
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED = False
@@ -115,9 +120,13 @@ RETRY_HTTP_CODES = [302,] # 302为了应对网络错误
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-   'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
+
+    'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
+    # 'scrapy.pipelines.images.ImagesPipeline':1,
     'trainlist_spider.middlewares.LocalRetryMiddlewares':200,
     'trainlist_spider.middlewares.MyUserAgentMiddleware':300,
+    # 'trainlist_spider.middlewares.MyProxyMiddlewareddd':400,
+
 }
 
 
@@ -136,8 +145,8 @@ ITEM_PIPELINES = {
 
 #LOG
 LOG_FILE="log.txt"
-LOG_LEVEL='INFO'
-LOG_ENCODING='gbk'
+LOG_LEVEL='DEBUG'
+# LOG_ENCODING='gbk'
 
 # Got Data Los
 DOWNLOAD_FAIL_ON_DATALOSS=False
